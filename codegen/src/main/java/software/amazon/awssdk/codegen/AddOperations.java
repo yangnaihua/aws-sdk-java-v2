@@ -155,6 +155,8 @@ final class AddOperations {
             operationModel.setDocumentation(op.getDocumentation());
             operationModel.setIsAuthenticated(isAuthenticated(op));
             operationModel.setPaginated(isPaginated(op));
+            operationModel.setEndpointOperation(op.isEndpointoperation());
+            operationModel.setEndpointDiscovery(op.getEndpointdiscovery());
 
             Input input = op.getInput();
             if (input != null) {

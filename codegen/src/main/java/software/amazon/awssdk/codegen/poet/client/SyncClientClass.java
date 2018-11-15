@@ -17,21 +17,33 @@ package software.amazon.awssdk.codegen.poet.client;
 
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
+import static javax.lang.model.element.Modifier.PUBLIC;
 import static software.amazon.awssdk.codegen.poet.client.ClientClassUtils.applyPaginatorUserAgentMethod;
 import static software.amazon.awssdk.codegen.poet.client.ClientClassUtils.applySignerOverrideMethod;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.TypeSpec.Builder;
+import java.net.URI;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Modifier;
 import software.amazon.awssdk.annotations.SdkInternalApi;
+import software.amazon.awssdk.awscore.client.config.AwsClientOption;
+import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryClient;
+import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryEndpoint;
+import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryRefreshCache;
+import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryRequest;
 import software.amazon.awssdk.codegen.docs.SimpleMethodOverload;
 import software.amazon.awssdk.codegen.emitters.GeneratorTaskParams;
+import software.amazon.awssdk.codegen.model.intermediate.EndpointDiscovery;
 import software.amazon.awssdk.codegen.model.intermediate.IntermediateModel;
 import software.amazon.awssdk.codegen.model.intermediate.OperationModel;
 import software.amazon.awssdk.codegen.model.intermediate.Protocol;
@@ -45,6 +57,7 @@ import software.amazon.awssdk.codegen.poet.client.specs.QueryProtocolSpec;
 import software.amazon.awssdk.codegen.poet.client.specs.XmlProtocolSpec;
 import software.amazon.awssdk.codegen.utils.PaginatorUtils;
 import software.amazon.awssdk.core.client.config.SdkClientConfiguration;
+import software.amazon.awssdk.core.client.config.SdkClientOption;
 import software.amazon.awssdk.core.client.handler.SyncClientHandler;
 
 //TODO Make SyncClientClass extend SyncClientInterface (similar to what we do in AsyncClientClass)
@@ -94,7 +107,43 @@ public class SyncClientClass implements ClassSpec {
             classBuilder.addMethod(applySignerOverrideMethod(poetExtensions, model));
         }
 
+        if (model.getEndpointOperation() != null) {
+            classBuilder.addSuperinterface(EndpointDiscoveryClient.class)
+                        .addField(FieldSpec.builder(EndpointDiscoveryRefreshCache.class, "endpointDiscoveryCache")
+                                           .addModifiers(PRIVATE, FINAL)
+                                           .initializer("$T.create(this)", EndpointDiscoveryRefreshCache.class)
+                                           .build())
+                        .addMethod(discoverEndpoint(model.getEndpointOperation()));
+        }
+
         return classBuilder.build();
+    }
+
+    private MethodSpec discoverEndpoint(OperationModel opModel) {
+        ParameterizedTypeName returnType = ParameterizedTypeName.get(CompletableFuture.class, EndpointDiscoveryEndpoint.class);
+
+        MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("discoverEndpoint")
+                                                     .addModifiers(PUBLIC)
+                                                     .addAnnotation(Override.class)
+                                                     .addParameter(EndpointDiscoveryRequest.class, "endpointDiscoveryRequest")
+                                                     .returns(returnType);
+
+        if (!opModel.getInputShape().isHasHeaderMember()) {
+            methodBuilder.addCode("return $T.supplyAsync(() -> {", CompletableFuture.class)
+                         .addStatement("$L response = $L($L.builder().build())",
+                                       opModel.getOutputShape().getC2jName(),
+                                       opModel.getMethodName(),
+                                       opModel.getInputShape().getC2jName())
+                         .addStatement("$T endpoint = response.endpoints().get(0)",
+                                       poetExtensions.getModelClass("Endpoint"))
+                         .addStatement("return $T.builder().endpoint($T.create(endpoint.address())).expirationTime" +
+                                       "($T.now().plus(endpoint.cachePeriodInMinutes(), $T.MINUTES)).build()",
+                                       EndpointDiscoveryEndpoint.class, URI.class, Instant.class, ChronoUnit.class)
+                         .addStatement("})");
+
+        }
+
+        return methodBuilder.build();
     }
 
     private MethodSpec nameMethod() {
@@ -140,13 +189,21 @@ public class SyncClientClass implements ClassSpec {
     private List<MethodSpec> operationMethodSpecs(OperationModel opModel) {
         List<MethodSpec> methods = new ArrayList<>();
 
-        methods.add(SyncClientInterface.operationMethodSignature(model, opModel)
+        MethodSpec.Builder method = SyncClientInterface.operationMethodSignature(model, opModel)
                                        .addAnnotation(Override.class)
                                        .addCode(ClientClassUtils.callApplySignerOverrideMethod(opModel))
                                        .addCode(protocolSpec.responseHandler(model, opModel))
-                                       .addCode(protocolSpec.errorResponseHandler(opModel))
-                                       .addCode(protocolSpec.executionHandler(opModel))
-                                       .build());
+                                       .addCode(protocolSpec.errorResponseHandler(opModel));
+
+        if (opModel.getEndpointDiscovery() != null) {
+            method.addStatement("\n\nString accessKey = clientConfiguration.option($T.CREDENTIALS_PROVIDER).resolveCredentials().accessKeyId()", AwsClientOption.class);
+            method.addStatement("$T cachedEndpoint = $L.get(accessKey, false, clientConfiguration.option(SdkClientOption.ENDPOINT))", URI.class, "endpointDiscoveryCache");
+            method.addStatement("clientConfiguration.copy(o -> o.option($T.ENDPOINT, cachedEndpoint))", SdkClientOption.class);
+        }
+
+        method.addCode(protocolSpec.executionHandler(opModel));
+
+        methods.add(method.build());
 
         methods.addAll(paginatedMethods(opModel));
 

@@ -106,6 +106,14 @@ public class IntermediateModelBuilder {
         operations.putAll(new AddOperations(this).constructOperations());
         authorizers.putAll(new AddCustomAuthorizers(this.service, getNamingStrategy()).constructAuthorizers());
 
+        OperationModel endpointOperation = null;
+
+        for (OperationModel o : operations.values()) {
+            if (o.isEndpointOperation()) {
+                endpointOperation = o;
+            }
+        }
+
         for (IntermediateModelShapeProcessor processor : shapeProcessors) {
             shapes.putAll(processor.process(Collections.unmodifiableMap(operations),
                                             Collections.unmodifiableMap(shapes)));
@@ -115,7 +123,7 @@ public class IntermediateModelBuilder {
 
         IntermediateModel fullModel = new IntermediateModel(
             constructMetadata(service, customConfig), operations, shapes,
-            customConfig, examples, authorizers, paginators.getPaginators(), namingStrategy);
+            customConfig, examples, endpointOperation, authorizers, paginators.getPaginators(), namingStrategy);
 
         customization.postprocess(fullModel);
 
@@ -130,6 +138,7 @@ public class IntermediateModelBuilder {
                                                                trimmedShapes,
                                                                fullModel.getCustomizationConfig(),
                                                                fullModel.getExamples(),
+                                                               endpointOperation,
                                                                fullModel.getCustomAuthorizers(),
                                                                fullModel.getPaginators(),
                                                                namingStrategy);

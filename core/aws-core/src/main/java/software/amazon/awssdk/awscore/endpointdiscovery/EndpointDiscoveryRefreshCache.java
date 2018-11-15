@@ -31,8 +31,12 @@ public final class EndpointDiscoveryRefreshCache {
 
     protected final Map<String, EndpointDiscoveryEndpoint> cache = new ConcurrentHashMap<>();
 
-    public EndpointDiscoveryRefreshCache(EndpointDiscoveryClient client) {
+    private EndpointDiscoveryRefreshCache(EndpointDiscoveryClient client) {
         this.client = client;
+    }
+
+    public static EndpointDiscoveryRefreshCache create(EndpointDiscoveryClient client) {
+        return new EndpointDiscoveryRefreshCache(client);
     }
 
     /**
