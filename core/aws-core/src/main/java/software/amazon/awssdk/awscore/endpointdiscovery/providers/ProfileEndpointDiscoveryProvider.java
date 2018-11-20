@@ -12,14 +12,17 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+
 package software.amazon.awssdk.awscore.endpointdiscovery.providers;
 
+import software.amazon.awssdk.annotations.SdkInternalApi;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.profiles.ProfileFile;
 import software.amazon.awssdk.profiles.ProfileFileSystemSetting;
 import software.amazon.awssdk.profiles.ProfileProperty;
 import software.amazon.awssdk.utils.ToString;
 
+@SdkInternalApi
 public class ProfileEndpointDiscoveryProvider implements EndpointDiscoveryProvider {
 
     private final String profileName = ProfileFileSystemSetting.AWS_PROFILE.getStringValueOrThrow();

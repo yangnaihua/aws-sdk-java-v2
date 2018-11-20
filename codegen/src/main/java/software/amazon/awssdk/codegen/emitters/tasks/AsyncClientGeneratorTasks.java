@@ -44,7 +44,7 @@ public class AsyncClientGeneratorTasks extends BaseGeneratorTasks {
         generatorTasks.add(createClientBuilderTask());
         generatorTasks.add(createClientBuilderInterfaceTask());
         generatorTasks.add(createClientInterfaceTask());
-        if (model.getEndpointOperation() != null) {
+        if (model.getEndpointOperation().isPresent()) {
             generatorTasks.add(createEndpointDiscoveryCacheLoaderTask());
         }
 

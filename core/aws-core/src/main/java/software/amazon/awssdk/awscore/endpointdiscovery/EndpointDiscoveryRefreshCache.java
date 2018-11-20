@@ -12,6 +12,7 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+
 package software.amazon.awssdk.awscore.endpointdiscovery;
 
 import java.net.URI;
@@ -27,9 +28,9 @@ public final class EndpointDiscoveryRefreshCache {
 
     private static final Logger log = Logger.loggerFor(EndpointDiscoveryRefreshCache.class);
 
-    private final EndpointDiscoveryCacheLoader client;
+    private final Map<String, EndpointDiscoveryEndpoint> cache = new ConcurrentHashMap<>();
 
-    protected final Map<String, EndpointDiscoveryEndpoint> cache = new ConcurrentHashMap<>();
+    private final EndpointDiscoveryCacheLoader client;
 
     private EndpointDiscoveryRefreshCache(EndpointDiscoveryCacheLoader client) {
         this.client = client;
@@ -56,7 +57,7 @@ public final class EndpointDiscoveryRefreshCache {
         EndpointDiscoveryEndpoint endpoint = cache.get(key);
 
         if (endpoint == null) {
-            if (request != null || request.required()) {
+            if (request.required()) {
                 return cache.computeIfAbsent(key, k -> discoverEndpoint(request).join()).endpoint();
             } else {
                 EndpointDiscoveryEndpoint tempEndpoint = EndpointDiscoveryEndpoint.builder()
@@ -69,7 +70,7 @@ public final class EndpointDiscoveryRefreshCache {
 
         if (endpoint.expirationTime().isBefore(Instant.now())) {
             cache.put(key, endpoint.toBuilder().expirationTime(Instant.now().plusSeconds(60)).build());
-            final String finalKey = key;
+            String finalKey = key;
             discoverEndpoint(null).thenApply(v -> cache.put(finalKey, v));
         }
 

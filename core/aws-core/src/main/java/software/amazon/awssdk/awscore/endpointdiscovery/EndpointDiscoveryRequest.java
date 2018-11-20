@@ -12,6 +12,7 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+
 package software.amazon.awssdk.awscore.endpointdiscovery;
 
 import java.util.Map;
@@ -55,6 +56,7 @@ public final class EndpointDiscoveryRequest
     public static Builder builder() {
         return new BuilderImpl();
     }
+
     @Override
     public Builder toBuilder() {
         return new BuilderImpl(this);

@@ -26,6 +26,7 @@ import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.awscore.AwsResponseMetadata;
@@ -55,7 +56,7 @@ public final class IntermediateModel {
     private final Map<String, AuthorizerModel> customAuthorizers;
 
     @JsonIgnore
-    private final OperationModel endpointOperation;
+    private final Optional<OperationModel> endpointOperation;
 
     @JsonIgnore
     private final Map<String, PaginatorDefinition> paginators;
@@ -89,7 +90,7 @@ public final class IntermediateModel {
         this.shapes = shapes;
         this.customizationConfig = customizationConfig;
         this.examples = examples;
-        this.endpointOperation = endpointOperation;
+        this.endpointOperation = Optional.ofNullable(endpointOperation);
         this.customAuthorizers = customAuthorizers;
         this.paginators = paginators;
         this.namingStrategy = namingStrategy;
@@ -210,7 +211,7 @@ public final class IntermediateModel {
         return customAuthorizers;
     }
 
-    public OperationModel getEndpointOperation() {
+    public Optional<OperationModel> getEndpointOperation() {
         return endpointOperation;
     }
 

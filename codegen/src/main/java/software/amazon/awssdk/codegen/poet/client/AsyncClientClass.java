@@ -19,7 +19,6 @@ import static com.squareup.javapoet.TypeSpec.Builder;
 import static java.util.Collections.singletonList;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
-import static javax.lang.model.element.Modifier.PUBLIC;
 import static software.amazon.awssdk.codegen.poet.client.ClientClassUtils.applyPaginatorUserAgentMethod;
 import static software.amazon.awssdk.codegen.poet.client.ClientClassUtils.applySignerOverrideMethod;
 import static software.amazon.awssdk.codegen.poet.client.SyncClientClass.getProtocolSpecs;
@@ -33,10 +32,7 @@ import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Modifier;
@@ -47,10 +43,7 @@ import software.amazon.awssdk.annotations.SdkInternalApi;
 import software.amazon.awssdk.awscore.client.config.AwsClientOption;
 import software.amazon.awssdk.awscore.client.handler.AwsAsyncClientHandler;
 import software.amazon.awssdk.awscore.client.handler.AwsClientHandlerUtils;
-import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryCacheLoader;
-import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryEndpoint;
 import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryRefreshCache;
-import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryRequest;
 import software.amazon.awssdk.awscore.eventstream.EventStreamTaggedUnionJsonMarshaller;
 import software.amazon.awssdk.codegen.emitters.GeneratorTaskParams;
 import software.amazon.awssdk.codegen.model.intermediate.IntermediateModel;
@@ -122,9 +115,8 @@ public final class AsyncClientClass extends AsyncClientInterface {
             classBuilder.addMethod(applySignerOverrideMethod(poetExtensions, model));
         }
 
-        if (model.getEndpointOperation() != null) {
-            classBuilder.addField(EndpointDiscoveryRefreshCache.class, "endpointDiscoveryCache", PRIVATE, FINAL);
-        }
+        model.getEndpointOperation().ifPresent(
+            o -> classBuilder.addField(EndpointDiscoveryRefreshCache.class, "endpointDiscoveryCache", PRIVATE, FINAL));
 
         protocolSpec.createErrorResponseHandler().ifPresent(classBuilder::addMethod);
 
@@ -141,7 +133,7 @@ public final class AsyncClientClass extends AsyncClientInterface {
         FieldSpec protocolFactoryField = protocolSpec.protocolFactory(model);
         if (model.getMetadata().isJsonProtocol()) {
             builder.addStatement("this.$N = init($T.builder()).build()", protocolFactoryField.name,
-                                protocolFactoryField.type);
+                                 protocolFactoryField.type);
         } else {
             builder.addStatement("this.$N = init()", protocolFactoryField.name);
         }
@@ -155,14 +147,12 @@ public final class AsyncClientClass extends AsyncClientInterface {
             builder.addStatement("this.executor = clientConfiguration.option($T.FUTURE_COMPLETION_EXECUTOR)",
                                  SdkAdvancedAsyncClientOption.class);
         }
-        if (model.getEndpointOperation() != null) {
-            if (model.getEndpointOperation() != null) {
-            builder.addStatement("this.endpointDiscoveryCache = $T.create($T.create(this))",
-                                 EndpointDiscoveryRefreshCache.class,
-                                 poetExtensions.getClientClass(model.getNamingStrategy().getServiceName() +
-                                                               "AsyncEndpointDiscoveryCacheLoader"));
-        }
-        }
+
+        model.getEndpointOperation().ifPresent(
+            o -> builder.addStatement("this.endpointDiscoveryCache = $T.create($T.create(this))",
+                                      EndpointDiscoveryRefreshCache.class,
+                                      poetExtensions.getClientClass(model.getNamingStrategy().getServiceName() +
+                                                                    "AsyncEndpointDiscoveryCacheLoader")));
         return builder.build();
     }
 
@@ -271,8 +261,8 @@ public final class AsyncClientClass extends AsyncClientInterface {
                                                   .collect(Collectors.toList());
 
         eventNames.forEach(event -> builder.add(".putMarshaller($T.class, new $T(protocolFactory))",
-                                                      poetExtensions.getModelClass(event),
-                                                      poetExtensions.getTransformClass(event + "Marshaller")));
+                                                poetExtensions.getModelClass(event),
+                                                poetExtensions.getTransformClass(event + "Marshaller")));
 
         builder.add(".build();");
         return builder.build();

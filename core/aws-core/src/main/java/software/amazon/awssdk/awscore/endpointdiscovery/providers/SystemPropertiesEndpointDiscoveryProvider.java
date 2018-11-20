@@ -36,12 +36,12 @@ public final class SystemPropertiesEndpointDiscoveryProvider implements Endpoint
 
     @Override
     public boolean resolveEndpointDiscovery() {
-        return SdkSystemSetting.
-            AWS_ENDPOINT_DISCOVERY_ENABLED.getBooleanValue()
-                                          .orElseThrow(
-                                              () -> SdkClientException.builder()
-                                                                      .message("No endpoint discovery setting set.")
-                                                                      .build());
+        return SdkSystemSetting
+            .AWS_ENDPOINT_DISCOVERY_ENABLED.getBooleanValue()
+                                           .orElseThrow(
+                                               () -> SdkClientException.builder()
+                                                                       .message("No endpoint discovery setting set.")
+                                                                       .build());
     }
 
     @Override

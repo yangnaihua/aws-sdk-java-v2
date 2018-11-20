@@ -51,7 +51,7 @@ public class SyncClientGeneratorTasks extends BaseGeneratorTasks {
         if (!model.simpleMethodsRequiringTesting().isEmpty()) {
             tasks.add(createClientSimpleMethodsTest());
         }
-        if (model.getEndpointOperation() != null) {
+        if (model.getEndpointOperation().isPresent()) {
             tasks.add(createEndpointDiscoveryCacheLoaderTask());
         }
         return tasks;

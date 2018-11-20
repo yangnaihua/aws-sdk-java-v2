@@ -12,11 +12,14 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+
 package software.amazon.awssdk.awscore.endpointdiscovery;
 
 import java.net.URI;
 import java.time.Instant;
+import software.amazon.awssdk.annotations.SdkInternalApi;
 
+@SdkInternalApi
 public class EndpointDiscoveryEndpoint {
 
     private final URI endpoint;
