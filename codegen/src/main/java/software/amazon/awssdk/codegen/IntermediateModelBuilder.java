@@ -119,6 +119,9 @@ public class IntermediateModelBuilder {
                                             Collections.unmodifiableMap(shapes)));
         }
 
+        // Remove deprecated operations
+        operations.entrySet().removeIf(e -> customConfig.getDeprecatedOperations().contains(e.getKey()));
+
         log.info("{} shapes found in total.", shapes.size());
 
         IntermediateModel fullModel = new IntermediateModel(
@@ -130,6 +133,8 @@ public class IntermediateModelBuilder {
         log.info("{} shapes remained after applying customizations.", fullModel.getShapes().size());
 
         Map<String, ShapeModel> trimmedShapes = removeUnusedShapes(fullModel);
+        // Remove deprecated shapes
+        trimmedShapes.entrySet().removeIf(e -> customConfig.getDeprecatedShapes().contains(e.getKey()));
 
         log.info("{} shapes remained after removing unused shapes.", trimmedShapes.size());
 
