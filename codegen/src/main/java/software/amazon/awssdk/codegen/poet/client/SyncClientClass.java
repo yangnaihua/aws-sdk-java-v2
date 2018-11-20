@@ -17,33 +17,25 @@ package software.amazon.awssdk.codegen.poet.client;
 
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
-import static javax.lang.model.element.Modifier.PUBLIC;
 import static software.amazon.awssdk.codegen.poet.client.ClientClassUtils.applyPaginatorUserAgentMethod;
 import static software.amazon.awssdk.codegen.poet.client.ClientClassUtils.applySignerOverrideMethod;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.TypeSpec.Builder;
 import java.net.URI;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Modifier;
 import software.amazon.awssdk.annotations.SdkInternalApi;
 import software.amazon.awssdk.awscore.client.config.AwsClientOption;
-import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryClient;
-import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryEndpoint;
+import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryCacheLoader;
 import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryRefreshCache;
-import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryRequest;
 import software.amazon.awssdk.codegen.docs.SimpleMethodOverload;
 import software.amazon.awssdk.codegen.emitters.GeneratorTaskParams;
-import software.amazon.awssdk.codegen.model.intermediate.EndpointDiscovery;
 import software.amazon.awssdk.codegen.model.intermediate.IntermediateModel;
 import software.amazon.awssdk.codegen.model.intermediate.OperationModel;
 import software.amazon.awssdk.codegen.model.intermediate.Protocol;
@@ -108,42 +100,10 @@ public class SyncClientClass implements ClassSpec {
         }
 
         if (model.getEndpointOperation() != null) {
-            classBuilder.addSuperinterface(EndpointDiscoveryClient.class)
-                        .addField(FieldSpec.builder(EndpointDiscoveryRefreshCache.class, "endpointDiscoveryCache")
-                                           .addModifiers(PRIVATE, FINAL)
-                                           .initializer("$T.create(this)", EndpointDiscoveryRefreshCache.class)
-                                           .build())
-                        .addMethod(discoverEndpoint(model.getEndpointOperation()));
+            classBuilder.addField(EndpointDiscoveryRefreshCache.class, "endpointDiscoveryCache", PRIVATE, FINAL);
         }
 
         return classBuilder.build();
-    }
-
-    private MethodSpec discoverEndpoint(OperationModel opModel) {
-        ParameterizedTypeName returnType = ParameterizedTypeName.get(CompletableFuture.class, EndpointDiscoveryEndpoint.class);
-
-        MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("discoverEndpoint")
-                                                     .addModifiers(PUBLIC)
-                                                     .addAnnotation(Override.class)
-                                                     .addParameter(EndpointDiscoveryRequest.class, "endpointDiscoveryRequest")
-                                                     .returns(returnType);
-
-        if (!opModel.getInputShape().isHasHeaderMember()) {
-            methodBuilder.addCode("return $T.supplyAsync(() -> {", CompletableFuture.class)
-                         .addStatement("$L response = $L($L.builder().build())",
-                                       opModel.getOutputShape().getC2jName(),
-                                       opModel.getMethodName(),
-                                       opModel.getInputShape().getC2jName())
-                         .addStatement("$T endpoint = response.endpoints().get(0)",
-                                       poetExtensions.getModelClass("Endpoint"))
-                         .addStatement("return $T.builder().endpoint($T.create(endpoint.address())).expirationTime" +
-                                       "($T.now().plus(endpoint.cachePeriodInMinutes(), $T.MINUTES)).build()",
-                                       EndpointDiscoveryEndpoint.class, URI.class, Instant.class, ChronoUnit.class)
-                         .addStatement("})");
-
-        }
-
-        return methodBuilder.build();
     }
 
     private MethodSpec nameMethod() {
@@ -174,6 +134,13 @@ public class SyncClientClass implements ClassSpec {
         } else {
             builder.addStatement("this.$N = init()", protocolFactoryField.name);
         }
+
+        if (model.getEndpointOperation() != null) {
+            builder.addStatement("this.endpointDiscoveryCache = $T.create($T.create(this))",
+                                 EndpointDiscoveryRefreshCache.class,
+                                 poetExtensions.getClientClass(model.getNamingStrategy().getServiceName() +
+                                                               "EndpointDiscoveryCacheLoader"));
+        }
         return builder.build();
     }
 
@@ -196,8 +163,11 @@ public class SyncClientClass implements ClassSpec {
                                        .addCode(protocolSpec.errorResponseHandler(opModel));
 
         if (opModel.getEndpointDiscovery() != null) {
-            method.addStatement("\n\nString accessKey = clientConfiguration.option($T.CREDENTIALS_PROVIDER).resolveCredentials().accessKeyId()", AwsClientOption.class);
-            method.addStatement("$T cachedEndpoint = $L.get(accessKey, false, clientConfiguration.option(SdkClientOption.ENDPOINT))", URI.class, "endpointDiscoveryCache");
+            method.addStatement("\n\nString key = clientConfiguration.option($T.CREDENTIALS_PROVIDER)." +
+                                "resolveCredentials().accessKeyId()", AwsClientOption.class);
+            method.addStatement("$T cachedEndpoint = $L.get(key, $L.endpointDiscoveryRequest(), " +
+                                "clientConfiguration.option(SdkClientOption.ENDPOINT))",
+                                URI.class, "endpointDiscoveryCache", opModel.getInputShape().getVariable().getVariableName());
             method.addStatement("clientConfiguration.copy(o -> o.option($T.ENDPOINT, cachedEndpoint))", SdkClientOption.class);
         }
 

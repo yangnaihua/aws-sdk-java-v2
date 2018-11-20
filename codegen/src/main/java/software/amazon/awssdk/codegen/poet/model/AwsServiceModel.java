@@ -15,6 +15,8 @@
 
 package software.amazon.awssdk.codegen.poet.model;
 
+import static javax.lang.model.element.Modifier.PUBLIC;
+
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
@@ -36,6 +38,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.lang.model.element.Modifier;
 import software.amazon.awssdk.annotations.SdkPublicApi;
+import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryRequest;
 import software.amazon.awssdk.codegen.docs.DocumentationBuilder;
 import software.amazon.awssdk.codegen.internal.Utils;
 import software.amazon.awssdk.codegen.model.intermediate.IntermediateModel;
@@ -95,7 +98,7 @@ public class AwsServiceModel implements ClassSpec {
                                 .addSuperinterface(ClassName.get(SdkPojo.class))
                                 .addJavadoc("Base interface for all event types of the $L API.", apiName)
                                 .addField(FieldSpec.builder(modelClass, "UNKNOWN")
-                                                   .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                                   .addModifiers(PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                                    .initializer(CodeBlock.builder()
                                                                          .add("new $T() {\n"
                                                                               + "        @Override\n"
@@ -132,7 +135,7 @@ public class AwsServiceModel implements ClassSpec {
         } else {
             List<FieldSpec> fields = shapeModelSpec.fields();
             TypeSpec.Builder specBuilder = TypeSpec.classBuilder(this.shapeModel.getShapeName())
-                                                   .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                                                   .addModifiers(PUBLIC, Modifier.FINAL)
                                                    .addAnnotation(PoetUtils.generatedAnnotation())
                                                    .addSuperinterfaces(modelSuperInterfaces())
                                                    .superclass(modelSuperClass())
@@ -193,7 +196,7 @@ public class AwsServiceModel implements ClassSpec {
         ParameterizedTypeName sdkFieldType = ParameterizedTypeName.get(ClassName.get(SdkField.class),
                                                                        WildcardTypeName.subtypeOf(ClassName.get(Object.class)));
         return MethodSpec.methodBuilder("sdkFields")
-                         .addModifiers(Modifier.PUBLIC)
+                         .addModifiers(PUBLIC)
                          .addAnnotation(Override.class)
                          .returns(ParameterizedTypeName.get(ClassName.get(List.class), sdkFieldType))
                          .addCode("return SDK_FIELDS;")
@@ -231,7 +234,7 @@ public class AwsServiceModel implements ClassSpec {
 
     private MethodSpec.Builder acceptMethodSpec(ClassName modelClass, ClassName responseHandlerClass) {
         return MethodSpec.methodBuilder("accept")
-                         .addModifiers(Modifier.PUBLIC)
+                         .addModifiers(PUBLIC)
                          .addJavadoc(new DocumentationBuilder()
                                              .description("Calls the appropriate visit method depending on "
                                                           + "the subtype of {@link $T}.")
@@ -329,6 +332,9 @@ public class AwsServiceModel implements ClassSpec {
                 methodSpecs.add(modelMethodOverrides.equalsMethod(shapeModel));
                 methodSpecs.add(modelMethodOverrides.toStringMethod(shapeModel));
                 methodSpecs.add(getValueForField());
+                if (shapeModel.getEndpointDiscovery() != null) {
+                    methodSpecs.add(endpointDiscoveryRequest());
+                }
                 break;
         }
 
@@ -337,7 +343,7 @@ public class AwsServiceModel implements ClassSpec {
 
     private MethodSpec getValueForField() {
         MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("getValueForField")
-                                                     .addModifiers(Modifier.PUBLIC)
+                                                     .addModifiers(PUBLIC)
                                                      .addTypeVariable(TypeVariableName.get("T"))
                                                      .returns(ParameterizedTypeName.get(ClassName.get(Optional.class),
                                                                                         TypeVariableName.get("T")))
@@ -366,6 +372,15 @@ public class AwsServiceModel implements ClassSpec {
         return methodBuilder.build();
     }
 
+    private MethodSpec endpointDiscoveryRequest() {
+        return MethodSpec.methodBuilder("endpointDiscoveryRequest")
+                         .addModifiers(PUBLIC)
+                         .returns(EndpointDiscoveryRequest.class)
+                         .addStatement("return $T.builder().required($L).build()",
+                                       EndpointDiscoveryRequest.class,
+                                       shapeModel.getEndpointDiscovery().isRequired())
+                         .build();
+    }
 
     private List<MethodSpec> memberGetters() {
         return shapeModel.getNonStreamingMembers().stream()
@@ -393,7 +408,7 @@ public class AwsServiceModel implements ClassSpec {
     private MethodSpec enumMemberGetter(MemberModel member) {
         return MethodSpec.methodBuilder(member.getFluentEnumGetterMethodName())
                          .addJavadoc("$L", member.getGetterDocumentation())
-                         .addModifiers(Modifier.PUBLIC)
+                         .addModifiers(PUBLIC)
                          .returns(typeProvider.enumReturnType(member))
                          .addCode(enumGetterStatement(member))
                          .build();
@@ -402,7 +417,7 @@ public class AwsServiceModel implements ClassSpec {
     private MethodSpec memberGetter(MemberModel member) {
         return MethodSpec.methodBuilder(member.getFluentGetterMethodName())
                          .addJavadoc("$L", member.getGetterDocumentation())
-                         .addModifiers(Modifier.PUBLIC)
+                         .addModifiers(PUBLIC)
                          .returns(typeProvider.returnType(member))
                          .addCode(getterStatement(member))
                          .build();
@@ -502,7 +517,7 @@ public class AwsServiceModel implements ClassSpec {
 
     private MethodSpec builderMethod() {
         return MethodSpec.methodBuilder("builder")
-                         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                         .addModifiers(PUBLIC, Modifier.STATIC)
                          .returns(modelBuilderSpecs.builderInterfaceName())
                          .addStatement("return new $T()", modelBuilderSpecs.builderImplName())
                          .build();
@@ -510,7 +525,7 @@ public class AwsServiceModel implements ClassSpec {
 
     private MethodSpec toBuilderMethod() {
         return MethodSpec.methodBuilder("toBuilder")
-                         .addModifiers(Modifier.PUBLIC)
+                         .addModifiers(PUBLIC)
                          .addAnnotation(Override.class)
                          .returns(modelBuilderSpecs.builderInterfaceName())
                          .addStatement("return new $T(this)", modelBuilderSpecs.builderImplName())
@@ -519,7 +534,7 @@ public class AwsServiceModel implements ClassSpec {
 
     private MethodSpec serializableBuilderClass() {
         return MethodSpec.methodBuilder("serializableBuilderClass")
-                         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                         .addModifiers(PUBLIC, Modifier.STATIC)
                          .returns(ParameterizedTypeName.get(ClassName.get(Class.class),
                                                             WildcardTypeName.subtypeOf(modelBuilderSpecs.builderInterfaceName())))
                          .addStatement("return $T.class", modelBuilderSpecs.builderImplName())

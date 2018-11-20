@@ -12,7 +12,14 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-package software.amazon.awssdk.awscore.endpointdiscovery;
 
-public class Constants {
+package software.amazon.awssdk.awscore.endpointdiscovery.providers;
+
+import software.amazon.awssdk.annotations.SdkProtectedApi;
+
+@SdkProtectedApi
+public class DefaultEndpointDiscoveryProviderChain extends EndpointDiscoveryProviderChain {
+    public DefaultEndpointDiscoveryProviderChain() {
+        super(SystemPropertiesEndpointDiscoveryProvider.create(), ProfileEndpointDiscoveryProvider.create());
+    }
 }

@@ -17,6 +17,9 @@ package software.amazon.awssdk.codegen.poet.client;
 
 import static com.squareup.javapoet.TypeSpec.Builder;
 import static java.util.Collections.singletonList;
+import static javax.lang.model.element.Modifier.FINAL;
+import static javax.lang.model.element.Modifier.PRIVATE;
+import static javax.lang.model.element.Modifier.PUBLIC;
 import static software.amazon.awssdk.codegen.poet.client.ClientClassUtils.applyPaginatorUserAgentMethod;
 import static software.amazon.awssdk.codegen.poet.client.ClientClassUtils.applySignerOverrideMethod;
 import static software.amazon.awssdk.codegen.poet.client.SyncClientClass.getProtocolSpecs;
@@ -28,8 +31,12 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import java.net.URI;
 import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Modifier;
@@ -37,8 +44,13 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.annotations.SdkInternalApi;
+import software.amazon.awssdk.awscore.client.config.AwsClientOption;
 import software.amazon.awssdk.awscore.client.handler.AwsAsyncClientHandler;
 import software.amazon.awssdk.awscore.client.handler.AwsClientHandlerUtils;
+import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryCacheLoader;
+import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryEndpoint;
+import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryRefreshCache;
+import software.amazon.awssdk.awscore.endpointdiscovery.EndpointDiscoveryRequest;
 import software.amazon.awssdk.awscore.eventstream.EventStreamTaggedUnionJsonMarshaller;
 import software.amazon.awssdk.codegen.emitters.GeneratorTaskParams;
 import software.amazon.awssdk.codegen.model.intermediate.IntermediateModel;
@@ -53,6 +65,7 @@ import software.amazon.awssdk.codegen.poet.eventstream.EventStreamUtils;
 import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.core.client.config.SdkAdvancedAsyncClientOption;
 import software.amazon.awssdk.core.client.config.SdkClientConfiguration;
+import software.amazon.awssdk.core.client.config.SdkClientOption;
 import software.amazon.awssdk.core.client.handler.AsyncClientHandler;
 import software.amazon.awssdk.protocols.json.AwsJsonProtocolFactory;
 import software.amazon.awssdk.utils.CompletableFutureUtils;
@@ -109,6 +122,10 @@ public final class AsyncClientClass extends AsyncClientInterface {
             classBuilder.addMethod(applySignerOverrideMethod(poetExtensions, model));
         }
 
+        if (model.getEndpointOperation() != null) {
+            classBuilder.addField(EndpointDiscoveryRefreshCache.class, "endpointDiscoveryCache", PRIVATE, FINAL);
+        }
+
         protocolSpec.createErrorResponseHandler().ifPresent(classBuilder::addMethod);
 
         return classBuilder.build();
@@ -137,6 +154,14 @@ public final class AsyncClientClass extends AsyncClientInterface {
                                            .build());
             builder.addStatement("this.executor = clientConfiguration.option($T.FUTURE_COMPLETION_EXECUTOR)",
                                  SdkAdvancedAsyncClientOption.class);
+        }
+        if (model.getEndpointOperation() != null) {
+            if (model.getEndpointOperation() != null) {
+            builder.addStatement("this.endpointDiscoveryCache = $T.create($T.create(this))",
+                                 EndpointDiscoveryRefreshCache.class,
+                                 poetExtensions.getClientClass(model.getNamingStrategy().getServiceName() +
+                                                               "AsyncEndpointDiscoveryCacheLoader"));
+        }
         }
         return builder.build();
     }
@@ -171,8 +196,18 @@ public final class AsyncClientClass extends AsyncClientInterface {
                .addCode(ClientClassUtils.callApplySignerOverrideMethod(opModel))
                .addCode(protocolSpec.responseHandler(model, opModel))
                .addCode(protocolSpec.errorResponseHandler(opModel))
-               .addCode(eventToByteBufferPublisher(opModel))
-               .addCode(protocolSpec.asyncExecutionHandler(model, opModel))
+               .addCode(eventToByteBufferPublisher(opModel));
+
+        if (opModel.getEndpointDiscovery() != null) {
+            builder.addStatement("\n\nString key = clientConfiguration.option($T.CREDENTIALS_PROVIDER).resolveCredentials()" +
+                                 ".accessKeyId()", AwsClientOption.class);
+            builder.addStatement("$T cachedEndpoint = $L.get(key, $L.endpointDiscoveryRequest(), " +
+                                 "clientConfiguration.option(SdkClientOption.ENDPOINT))",
+                                 URI.class, "endpointDiscoveryCache", opModel.getInputShape().getVariable().getVariableName());
+            builder.addStatement("clientConfiguration.copy(o -> o.option($T.ENDPOINT, cachedEndpoint))", SdkClientOption.class);
+        }
+
+        builder.addCode(protocolSpec.asyncExecutionHandler(model, opModel))
                .endControlFlow()
                .beginControlFlow("catch ($T t)", Throwable.class);
 

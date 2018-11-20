@@ -27,15 +27,15 @@ public final class EndpointDiscoveryRefreshCache {
 
     private static final Logger log = Logger.loggerFor(EndpointDiscoveryRefreshCache.class);
 
-    private final EndpointDiscoveryClient client;
+    private final EndpointDiscoveryCacheLoader client;
 
     protected final Map<String, EndpointDiscoveryEndpoint> cache = new ConcurrentHashMap<>();
 
-    private EndpointDiscoveryRefreshCache(EndpointDiscoveryClient client) {
+    private EndpointDiscoveryRefreshCache(EndpointDiscoveryCacheLoader client) {
         this.client = client;
     }
 
-    public static EndpointDiscoveryRefreshCache create(EndpointDiscoveryClient client) {
+    public static EndpointDiscoveryRefreshCache create(EndpointDiscoveryCacheLoader client) {
         return new EndpointDiscoveryRefreshCache(client);
     }
 
@@ -44,27 +44,33 @@ public final class EndpointDiscoveryRefreshCache {
      * endpoints from a cache. Each service must handle converting a request
      * object into the relevant cache key.
      *
-     * @param required - Whether or not the service requires use of endpoint discovery
      * @param defaultEndpoint - The default endpoint for the service
      * @return The endpoint to use for this request
      */
-    public URI get(String accessKey, boolean required, URI defaultEndpoint) {
-        EndpointDiscoveryEndpoint endpoint = cache.get(accessKey);
+    public URI get(String accessKey, EndpointDiscoveryRequest request, URI defaultEndpoint) {
+        String key = accessKey;
+        if (request.cacheKey().isPresent()) {
+            key = key + ":" + request.cacheKey().get();
+        }
+
+        EndpointDiscoveryEndpoint endpoint = cache.get(key);
 
         if (endpoint == null) {
-            if (required) {
-                return cache.put(accessKey, discoverEndpoint(null).join()).endpoint();
+            if (request != null || request.required()) {
+                return cache.computeIfAbsent(key, k -> discoverEndpoint(request).join()).endpoint();
             } else {
                 EndpointDiscoveryEndpoint tempEndpoint = EndpointDiscoveryEndpoint.builder()
                                                                                   .endpoint(defaultEndpoint)
                                                                                   .expirationTime(Instant.now().plusSeconds(60))
                                                                                   .build();
-                return cache.computeIfAbsent(accessKey, k -> tempEndpoint).endpoint();
+                return cache.computeIfAbsent(key, k -> tempEndpoint).endpoint();
             }
         }
 
         if (endpoint.expirationTime().isBefore(Instant.now())) {
-            discoverEndpoint(null).thenApply(v -> cache.put(accessKey, v));
+            cache.put(key, endpoint.toBuilder().expirationTime(Instant.now().plusSeconds(60)).build());
+            final String finalKey = key;
+            discoverEndpoint(null).thenApply(v -> cache.put(finalKey, v));
         }
 
         return endpoint.endpoint();

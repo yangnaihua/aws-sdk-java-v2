@@ -39,6 +39,10 @@ public class EndpointDiscoveryEndpoint {
         return new BuilderImpl();
     }
 
+    public Builder toBuilder() {
+        return builder().endpoint(endpoint).expirationTime(expirationTime);
+    }
+
     public interface Builder {
 
         Builder endpoint(URI endpoint);

@@ -16,7 +16,9 @@ package software.amazon.awssdk.awscore.endpointdiscovery;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import software.amazon.awssdk.annotations.SdkInternalApi;
 
-public interface EndpointDiscoveryClient {
+@SdkInternalApi
+public interface EndpointDiscoveryCacheLoader {
     CompletableFuture<EndpointDiscoveryEndpoint> discoverEndpoint(EndpointDiscoveryRequest endpointDiscoveryRequest);
 }
