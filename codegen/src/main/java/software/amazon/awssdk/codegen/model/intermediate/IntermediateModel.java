@@ -72,7 +72,8 @@ public final class IntermediateModel {
         @JsonProperty("customizationConfig") CustomizationConfig customizationConfig,
         @JsonProperty("serviceExamples") ServiceExamples examples) {
 
-        this(metadata, operations, shapes, customizationConfig, examples, null, Collections.emptyMap(), Collections.emptyMap(), null);
+        this(metadata, operations, shapes, customizationConfig, examples, null,
+             Collections.emptyMap(), Collections.emptyMap(), null);
     }
 
     public IntermediateModel(

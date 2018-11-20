@@ -12,6 +12,7 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+
 package software.amazon.awssdk.codegen.poet.endpointdiscovery;
 
 import static javax.lang.model.element.Modifier.FINAL;
@@ -64,7 +65,7 @@ public class EndpointDiscoveryCacheLoaderGenerator implements ClassSpec {
                                           .build())
                        .addMethod(constructor())
                        .addMethod(create())
-                       .addMethod(discoverEndpoint(model.getEndpointOperation()))
+                       .addMethod(discoverEndpoint(model.getEndpointOperation().get()))
                        .build();
     }
 
