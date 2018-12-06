@@ -3440,14 +3440,14 @@
         },
         "LogDestinationConfigs":{
           "shape":"LogDestinationConfigs",
-          "documentation":"<p>An array of Amazon Kinesis Data Firehose ARNs.</p>"
+          "documentation":"<p>An array of Amazon Kinesis Data Firehose delivery stream ARNs.</p>"
         },
         "RedactedFields":{
           "shape":"RedactedFields",
-          "documentation":"<p>The parts of the request that you want redacted from the logs. For example, if you redact the cookie field, the cookie field in the firehose will be <code>xxx</code>. </p>"
+          "documentation":"<p>The parts of the request that you want redacted from the logs. For example, if you redact the cookie field, the cookie field in the delivery stream will be <code>xxx</code>. </p>"
         }
       },
-      "documentation":"<p>The Amazon Kinesis Data Firehose, <code>RedactedFields</code> information, and the web ACL Amazon Resource Name (ARN).</p>"
+      "documentation":"<p>The Amazon Kinesis Data Firehose delivery streams, <code>RedactedFields</code> information, and the web ACL Amazon Resource Name (ARN).</p>"
     },
     "LoggingConfigurations":{
       "type":"list",
@@ -3573,7 +3573,7 @@
       "members":{
         "LoggingConfiguration":{
           "shape":"LoggingConfiguration",
-          "documentation":"<p>The Amazon Kinesis Data Firehose that contains the inspected traffic information, the redacted fields details, and the Amazon Resource Name (ARN) of the web ACL to monitor.</p>"
+          "documentation":"<p>The Amazon Kinesis Data Firehose delivery streams that contains the inspected traffic information, the redacted fields details, and the Amazon Resource Name (ARN) of the web ACL to monitor.</p>"
         }
       }
     },
@@ -4832,10 +4832,6 @@
         "Rules":{
           "shape":"ActivatedRules",
           "documentation":"<p>An array that contains the action for each <code>Rule</code> in a <code>WebACL</code>, the priority of the <code>Rule</code>, and the ID of the <code>Rule</code>.</p>"
-        },
-        "WebACLArn":{
-            "shape":"ResourceArn",
-            "documentation":"<p>Tha Amazon Resource Name (ARN) of the web ACL.</p>"
         }
       },
       "documentation":"<p>Contains the <code>Rules</code> that identify the requests that you want to allow, block, or count. In a <code>WebACL</code>, you also specify a default action (<code>ALLOW</code> or <code>BLOCK</code>), and the action for each <code>Rule</code> that you add to a <code>WebACL</code>, for example, block requests from specified IP addresses or block requests from specified referrers. You also associate the <code>WebACL</code> with a CloudFront distribution to identify the requests that you want AWS WAF to filter. If you add more than one <code>Rule</code> to a <code>WebACL</code>, a request needs to match only one of the specifications to be allowed, blocked, or counted. For more information, see <a>UpdateWebACL</a>.</p>"
