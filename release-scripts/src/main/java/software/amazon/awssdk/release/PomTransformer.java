@@ -55,6 +55,7 @@ public abstract class PomTransformer {
         Transformer transformer = transformerFactory.newTransformer();
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
         transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
         DOMSource source = new DOMSource(doc);
         StreamResult result = new StreamResult(file.toFile());
         transformer.transform(source, result);
