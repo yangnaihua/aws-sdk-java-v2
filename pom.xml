@@ -61,6 +61,7 @@
         <module>codegen-maven-plugin</module>
         <module>bundle</module>
         <module>build-tools</module>
+        <module>release-scripts</module>
         <module>test/dynamodbdocument-v1</module>
         <module>test/dynamodbmapper-v1</module>
         <module>test/http-client-tests</module>
@@ -93,7 +94,7 @@
         <unitils.version>3.3</unitils.version>
         <xmlunit.version>1.3</xmlunit.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spotbugs.version>3.1.3.1</spotbugs.version>
+        <spotbugs.version>3.1.9</spotbugs.version>
         <netty-reactive-streams-http.version>2.0.0</netty-reactive-streams-http.version>
         <freemarker.version>2.3.24-incubating</freemarker.version>
         <javapoet.verion>1.11.1</javapoet.verion>
@@ -1127,6 +1128,10 @@
                                 <group>
                                     <title>WorkDocs</title>
                                     <packages>software.amazon.awssdk.services.workdocs*</packages>
+                                </group>
+                                <group>
+                                    <title>CodeDeploy</title>
+                                    <packages>software.amazon.awssdk.services.codedeploy*</packages>
                                 </group>
                                 <group>
                                     <title>Common</title>
